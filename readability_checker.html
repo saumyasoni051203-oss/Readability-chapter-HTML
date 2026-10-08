@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chapter Readability Checker</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:900px;margin:0 auto;padding:24px;line-height:1.5;color:#222}
+h1{margin-bottom:4px}.sub{color:#666;margin-top:0}
+textarea{width:100%;min-height:280px;padding:14px;box-sizing:border-box;border:1px solid #bbb;border-radius:10px;font:inherit}
+button{margin:12px 0;padding:11px 18px;border:0;border-radius:8px;background:#222;color:#fff;font-weight:600}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.card{border:1px solid #ddd;border-radius:10px;padding:12px 16px;min-width:130px}
+#output{white-space:pre-wrap}.hard{background:#ffe58a;padding:2px 3px;border-radius:3px}
+small{color:#666}
+</style>
+</head>
+<body>
+<h1>Chapter Readability Checker</h1>
+<p class="sub">Paste a chapter to get a Flesch Reading Ease score and the five hardest sentences.</p>
+<textarea id="text" placeholder="Paste your chapter here..."></textarea>
+<button onclick="analyze()">Analyze chapter</button>
+<div id="results"></div>
+<script>
+function words(s){return (s.match(/\b[\w'-]+\b/g)||[])}
+function syllables(w){
+  w=w.toLowerCase().replace(/[^a-z]/g,'');
+  if(!w)return 0;
+  if(w.length<=3)return 1;
+  w=w.replace(/(?:[^laeiouy]es|ed|e)$/,'').replace(/^y/,'');
+  let m=w.match(/[aeiouy]{1,2}/g);
+  return Math.max(1,(m||[]).length);
+}
+function splitSentences(t){
+  return (t.replace(/\s+/g,' ').trim().match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g)||[]).map(s=>s.trim()).filter(Boolean);
+}
+function scoreSentence(s){
+  const w=words(s), sy=w.reduce((a,x)=>a+syllables(x),0);
+  const long=w.filter(x=>x.length>=7).length;
+  return (w.length*0.9)+(sy*0.15)+(long*1.7);
+}
+function analyze(){
+  const t=document.getElementById('text').value.trim();
+  if(!t){document.getElementById('results').innerHTML='<p>Paste some text first.</p>';return}
+  const s=splitSentences(t), w=words(t), sy=w.reduce((a,x)=>a+syllables(x),0);
+  const grade=0.39*(w.length/s.length)+11.8*(sy/w.length)-15.59;
+  const ease=206.835-1.015*(w.length/s.length)-84.6*(sy/w.length);
+  const hard=s.map((x,i)=>({x,i,v:scoreSentence(x)})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const hardSet=new Set(hard.map(x=>x.i));
+  let out=s.map((x,i)=>hardSet.has(i)?'<span class="hard">'+escapeHtml(x)+'</span>':escapeHtml(x)).join(' ');
+  document.getElementById('results').innerHTML=
+    '<div class="stats">'+
+    '<div class="card"><b>'+ease.toFixed(1)+'</b><br>Reading Ease</div>'+
+    '<div class="card"><b>'+grade.toFixed(1)+'</b><br>Grade Level</div>'+
+    '<div class="card"><b>'+w.length+'</b><br>Words</div>'+
+    '<div class="card"><b>'+s.length+'</b><br>Sentences</div>'+
+    '</div><h2>Five hardest sentences</h2><div id="output">'+out+'</div>'+
+    '<p><small>Difficulty is a heuristic based on sentence length, syllable density, and long-word count. It is not a claim about meaning or writing quality.</small></p>';
+}
+function escapeHtml(x){return x.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+</script>
+</body>
+</html>
